@@ -5,3 +5,7 @@ lab.txt
 src/*.egg-info/
 lab/
 **/__pycache__/
+.pytest_cache/
+data/chroma/
+*.sqlite3
+
