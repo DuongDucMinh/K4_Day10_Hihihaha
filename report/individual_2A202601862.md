@@ -7,7 +7,7 @@
 | Họ và tên | Thái Hoài An |
 | MSSV | 2A202601862 |
 | Khóa/Lớp | K4 |
-| Tên nhóm | K4_Day10_DataObservability_Team |
+| Tên nhóm | Hihihaha |
 | Vai trò chính | Data Observability Owner |
 | Repository | DuongDucMinh/K4_Day10_Hihihaha |
 | Ngày hoàn thành | 2026-08-06 |
