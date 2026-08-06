@@ -52,12 +52,12 @@ Crossref API
 
 | Khối | Input | Xử lý chính | Output/artifact | Owner |
 | ----------------- | -------------- | -------------------------- | ------------------------ | -------------- |
-| Ingestion | Crossref API | Fetch API, exponential backoff retry, parse JSON | `data/raw/crossref_response.json`, `raw_records_json` | Dương Đức Minh |
-| Cleaning | Raw Records | Clean text, parse dates, compute `text_for_embedding`, dedup | `data/clean/papers_clean.csv`, `papers_clean.json` | Thành viên 02 |
-| Embedding/index | Cleaned DataFrame | MiniLM Embedding + ChromaDB PersistentClient | `data/chroma/`, `data/embeddings/*.json` | Thành viên 03 |
-| Evaluation | Cleaned DF + TestSet | Sinh QA pairs, tính Hit Rate, Token F1, LLM Judge | `data/eval/test_set.json`, `data/results/*_metrics.json` | Thành viên 04 |
-| Observability | DataFrames | Quality checks (null, dupe, empty summary) & Freshness | `data/quality/*.json`, `data/reports/phase1_report.md` | Thành viên 05 |
-| Corruption/Repair | Clean DF & Raw Snapshot | Corrupt data, log anomaly, repair from raw snapshot | `data/results/corruption_log.json`, `corruption_report.md` | Thành viên 05 |
+| Ingestion | Crossref API | Fetch API, exponential backoff retry, parse JSON | `data/raw/crossref_response.json`, `raw_records_json` | Phạm Tấn Gia Quốc |
+| Cleaning | Raw Records | Clean text, parse dates, compute `text_for_embedding`, dedup | `data/clean/papers_clean.csv`, `papers_clean.json` | Dương Đức Minh |
+| Embedding/index | Cleaned DataFrame | MiniLM Embedding + ChromaDB PersistentClient | `data/chroma/`, `data/embeddings/*.json` | Phạm Tấn Gia Quốc |
+| Evaluation | Cleaned DF + TestSet | Sinh QA pairs, tính Hit Rate, Token F1, LLM Judge | `data/eval/test_set.json`, `data/results/*_metrics.json` | Dương Đức Minh |
+| Observability | DataFrames | Quality checks (null, dupe, empty summary) & Freshness | `data/quality/*.json`, `data/reports/phase1_report.md` | Thái Hoài An |
+| Corruption/Repair | Clean DF & Raw Snapshot | Corrupt data, log anomaly, repair from raw snapshot | `data/results/corruption_log.json`, `corruption_report.md` | Nguyễn Thanh Tùng |
 
 ---
 
@@ -68,7 +68,7 @@ Crossref API
 | Biến/cấu hình | Giá trị sử dụng |
 | ---------------------------- | ------------------- |
 | `LLM_PROVIDER` | `gemini` |
-| `LLM_MODEL` | `gemini-2.5-flash` |
+| `LLM_MODEL` | `gemini-3.5-flash-lite` |
 | Embedding model | `sentence-transformers/all-MiniLM-L6-v2` |
 | Số lượng Crossref records | 24 |
 | Retrieval `top_k` | 4 |
