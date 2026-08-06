@@ -7,7 +7,7 @@
 | Họ và tên | Phạm Tấn Gia Quốc |
 | MSSV | 2A202601606 |
 | Khóa/Lớp | K4 |
-| Tên nhóm | K4_Day10_DataObservability_Team |
+| Tên nhóm | Hihihaha |
 | Vai trò chính | Source Ingestion Owner |
 | Repository | DuongDucMinh/K4_Day10_Hihihaha |
 | Ngày hoàn thành | 2026-08-06 |
