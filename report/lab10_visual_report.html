@@ -1,0 +1,1008 @@
+<title>Lab 10 — Dữ liệu hỏng thì câu trả lời hỏng theo</title>
+
+<style>
+  :root {
+    --ground: #F4F6F7;
+    --surface: #FFFFFF;
+    --surface-sunk: #EAEFF0;
+    --ink: #12191C;
+    --ink-soft: #55666C;
+    --ink-faint: #7D8E94;
+    --rule: #D8E1E3;
+    --accent: #0D5563;
+    --accent-soft: #E2EDEF;
+    --pass: #2E7D52;
+    --warn: #A9701A;
+    --fail: #B0392B;
+    --fail-soft: #F7E7E4;
+
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, "Cascadia Mono", "Roboto Mono", monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #0E1417; --surface: #151D21; --surface-sunk: #1B252A;
+      --ink: #E4EBEE; --ink-soft: #A0B0B6; --ink-faint: #7A8C92; --rule: #26343A;
+      --accent: #58BCCE; --accent-soft: #17313A;
+      --pass: #5FC490; --warn: #D8A648; --fail: #E9836F; --fail-soft: #34211E;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0E1417; --surface: #151D21; --surface-sunk: #1B252A;
+    --ink: #E4EBEE; --ink-soft: #A0B0B6; --ink-faint: #7A8C92; --rule: #26343A;
+    --accent: #58BCCE; --accent-soft: #17313A;
+    --pass: #5FC490; --warn: #D8A648; --fail: #E9836F; --fail-soft: #34211E;
+  }
+  :root[data-theme="light"] {
+    --ground: #F4F6F7; --surface: #FFFFFF; --surface-sunk: #EAEFF0;
+    --ink: #12191C; --ink-soft: #55666C; --ink-faint: #7D8E94; --rule: #D8E1E3;
+    --accent: #0D5563; --accent-soft: #E2EDEF;
+    --pass: #2E7D52; --warn: #A9701A; --fail: #B0392B; --fail-soft: #F7E7E4;
+  }
+
+  body {
+    background: var(--ground); color: var(--ink); font-family: var(--sans);
+    font-size: 16px; line-height: 1.6; -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 1000px; margin: 0 auto; padding: 56px 24px 96px;
+          display: flex; flex-direction: column; gap: 56px; }
+  .prose { max-width: 68ch; display: flex; flex-direction: column; gap: 16px; }
+
+  h1, h2, h3 { font-family: var(--serif); font-weight: 600; text-wrap: balance; line-height: 1.2; }
+  h1 { font-size: clamp(30px, 5vw, 44px); letter-spacing: -0.01em; }
+  h2 { font-size: clamp(22px, 3vw, 28px); }
+  h3 { font-size: 18px; }
+  p { margin: 0; }
+  strong { font-weight: 650; }
+
+  .eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em;
+             text-transform: uppercase; color: var(--ink-faint); }
+  .lede { font-size: 19px; color: var(--ink-soft); max-width: 62ch; }
+
+  header.masthead { display: flex; flex-direction: column; gap: 14px; }
+  .meta { font-family: var(--mono); font-size: 12px; color: var(--ink-faint);
+          display: flex; flex-wrap: wrap; gap: 6px 18px; padding-top: 10px;
+          border-top: 1px solid var(--rule); }
+
+  section { display: flex; flex-direction: column; gap: 22px; }
+  .sec-head { display: flex; flex-direction: column; gap: 8px; }
+
+  /* ================= PLAYER ================= */
+  .player { background: var(--surface); border: 1px solid var(--rule);
+            border-radius: 6px; overflow: hidden;
+            display: flex; flex-direction: column; }
+
+  .stage { padding: 22px 22px 6px; overflow-x: auto; }
+  .stage svg { display: block; width: 100%; min-width: 660px; height: auto; }
+
+  .node .box { fill: none; stroke: currentColor; stroke-width: 1.25; }
+  .node text { fill: currentColor; font-family: var(--mono); }
+  .node { opacity: 0.18; transition: opacity .45s ease; }
+  .node.on { opacity: 1; }
+  .node.live .box { stroke: var(--accent); stroke-width: 2; }
+  .node.live .ttl { fill: var(--accent); }
+  .node.bad .box { stroke: var(--fail); stroke-width: 2; }
+  .node.bad text { fill: var(--fail); }
+
+  .edge { fill: none; stroke: currentColor; stroke-width: 1.4;
+          stroke-dasharray: 1; stroke-dashoffset: 1;
+          transition: stroke-dashoffset .7s ease, opacity .3s ease; opacity: 0.2; }
+  .edge.on { stroke-dashoffset: 0; opacity: 0.85; }
+  .edge.hi { stroke: var(--accent); stroke-width: 2.4; opacity: 1; }
+  .edge.dim-fail.on { stroke: var(--fail); opacity: 0.9; }
+  .elabel { font-family: var(--mono); font-size: 10.5px; fill: currentColor;
+            opacity: 0; transition: opacity .4s ease; }
+  .elabel.on { opacity: 0.75; }
+  .elabel.hi { fill: var(--accent); opacity: 1; font-size: 11px; }
+  .elabel.bad { fill: var(--fail); }
+
+  .val { font-family: var(--mono); opacity: 0; transition: opacity .5s ease; }
+  .val.on { opacity: 0.75; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .node, .edge, .elabel, .val { transition: none; }
+  }
+
+  /* caption + readout */
+  .deck { padding: 4px 22px 20px; display: flex; flex-direction: column; gap: 16px; }
+  .caption { display: flex; flex-direction: column; gap: 6px; min-height: 96px; }
+  .cap-step { font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em;
+              text-transform: uppercase; color: var(--accent); }
+  .cap-title { font-family: var(--serif); font-size: 21px; line-height: 1.25; }
+  .cap-say { font-size: 15px; color: var(--ink-soft); max-width: 66ch; }
+  .cap-say ul { margin: 6px 0 0; padding-left: 20px; }
+  .cap-say li { font-family: var(--mono); font-size: 13px; }
+
+  .readout { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+             gap: 1px; background: var(--rule); border: 1px solid var(--rule); border-radius: 5px; }
+  .cell { background: var(--surface); padding: 12px 14px; display: flex; flex-direction: column; gap: 3px; }
+  .cell .k { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.08em;
+             text-transform: uppercase; color: var(--ink-faint); }
+  .cell .v { font-family: var(--mono); font-size: 19px; font-variant-numeric: tabular-nums; }
+  .cell .v.pass { color: var(--pass); }
+  .cell .v.fail { color: var(--fail); }
+  .cell .v.idle { color: var(--ink-faint); }
+
+  /* controls */
+  .controls { border-top: 1px solid var(--rule); background: var(--surface-sunk);
+              padding: 12px 22px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .btn { font-family: var(--mono); font-size: 12px; color: var(--ink);
+         background: var(--surface); border: 1px solid var(--rule); border-radius: 4px;
+         padding: 7px 13px; cursor: pointer; line-height: 1; }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); min-width: 96px; }
+  .btn.primary:hover { opacity: .88; color: var(--surface); }
+  .dots { display: flex; gap: 5px; margin-left: auto; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; border: 1px solid var(--ink-faint);
+         background: transparent; cursor: pointer; padding: 0; }
+  .dot.done { background: var(--ink-faint); }
+  .dot.now { background: var(--accent); border-color: var(--accent); transform: scale(1.25); }
+  .hint { font-family: var(--mono); font-size: 11px; color: var(--ink-faint); }
+  .track { height: 2px; background: var(--rule); }
+  .track > i { display: block; height: 100%; width: 0; background: var(--accent); }
+
+  /* ================= rest ================= */
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+  .tile { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px;
+          padding: 18px 20px; display: flex; flex-direction: column; gap: 6px; }
+  .tile .state { font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em;
+                 text-transform: uppercase; color: var(--ink-faint); }
+  .tile .big { font-family: var(--mono); font-size: 30px; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .tile .note { font-size: 13px; color: var(--ink-soft); }
+  .tile.is-fail { border-color: var(--fail); background: var(--fail-soft); }
+  .tile.is-fail .big { color: var(--fail); }
+
+  .chip { display: inline-flex; align-items: center; gap: 5px; align-self: flex-start;
+          font-family: var(--mono); font-size: 11px; letter-spacing: 0.06em;
+          padding: 2px 8px; border-radius: 3px; border: 1px solid currentColor; }
+  .chip.pass { color: var(--pass); }
+  .chip.fail { color: var(--fail); }
+
+  .panel { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 26px; }
+  figure { margin: 0; display: flex; flex-direction: column; gap: 14px; }
+  .scroll-x { overflow-x: auto; }
+  figcaption { font-size: 14px; color: var(--ink-soft); max-width: 68ch; }
+
+  .facets { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 20px; }
+  .facet { display: flex; flex-direction: column; gap: 4px; }
+  .facet-title { font-family: var(--mono); font-size: 12px; color: var(--ink); }
+  .facet-sub { font-family: var(--mono); font-size: 11px; color: var(--ink-faint); }
+  .facet svg { width: 100%; height: auto; display: block; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  caption { text-align: left; font-size: 13px; color: var(--ink-faint); padding-bottom: 10px; }
+  th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--rule); }
+  thead th { font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em;
+             text-transform: uppercase; color: var(--ink-faint); font-weight: 500; }
+  td.num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  td.key { font-family: var(--mono); font-size: 12.5px; }
+  .st { font-family: var(--mono); font-size: 11px; font-weight: 600; letter-spacing: 0.06em; }
+  .st.pass { color: var(--pass); }
+  .st.fail { color: var(--fail); }
+  tr.flipped td { background: var(--fail-soft); }
+
+  .callout { border-left: 3px solid var(--accent); background: var(--accent-soft);
+             padding: 18px 22px; border-radius: 0 6px 6px 0;
+             display: flex; flex-direction: column; gap: 10px; }
+  .callout.caution { border-left-color: var(--warn); background: var(--surface-sunk); }
+  .callout h3 { font-family: var(--sans); font-size: 15px; font-weight: 650; }
+  .hash { font-family: var(--mono); font-size: 12.5px; line-height: 1.9; }
+  .hash b { color: var(--accent); font-weight: 600; }
+
+  ol.steps { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column;
+             gap: 18px; counter-reset: s; }
+  ol.steps > li { counter-increment: s; display: grid; grid-template-columns: 34px 1fr; gap: 16px;
+                  padding-bottom: 18px; border-bottom: 1px solid var(--rule); }
+  ol.steps > li:last-child { border-bottom: none; padding-bottom: 0; }
+  ol.steps > li::before { content: counter(s); font-family: var(--mono); font-size: 12px;
+                          color: var(--accent); border: 1px solid var(--accent); border-radius: 50%;
+                          width: 26px; height: 26px; display: grid; place-items: center; margin-top: 2px; }
+  .say { display: flex; flex-direction: column; gap: 6px; }
+  .say .line { font-family: var(--serif); font-size: 17px; }
+  .say .why { font-size: 14px; color: var(--ink-soft); }
+
+  code { font-family: var(--mono); font-size: 0.88em; background: var(--surface-sunk);
+         padding: 1px 5px; border-radius: 3px; }
+  a { color: var(--accent); }
+
+  /* ================= TRACE ================= */
+  .trace { display: flex; flex-direction: column; }
+  .stn { display: grid; grid-template-columns: 28px 1fr; gap: 20px; padding-bottom: 30px; }
+  .stn:last-child { padding-bottom: 0; }
+  .rail { position: relative; display: flex; justify-content: center; }
+  .rail::before { content: ""; position: absolute; top: 30px; bottom: -30px;
+                  width: 1px; background: var(--rule); }
+  .stn:last-child .rail::before { display: none; }
+  .pip { width: 28px; height: 28px; border-radius: 50%; background: var(--ground);
+         border: 1px solid var(--accent); color: var(--accent);
+         font-family: var(--mono); font-size: 11px;
+         display: grid; place-items: center; position: relative; z-index: 1; }
+  .stn.bad .pip { border-color: var(--fail); color: var(--fail); }
+  .stn.good .pip { border-color: var(--pass); color: var(--pass); }
+
+  .stn-body { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .stn-lbl { font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em;
+             text-transform: uppercase; color: var(--ink-faint); }
+  .stn-h { font-family: var(--serif); font-size: 19px; line-height: 1.25; }
+  .stn-p { font-size: 14.5px; color: var(--ink-soft); max-width: 66ch; }
+
+  pre.code { font-family: var(--mono); font-size: 12px; line-height: 1.75; margin: 0;
+             background: var(--surface-sunk); border: 1px solid var(--rule);
+             border-radius: 5px; padding: 14px 16px; overflow-x: auto; white-space: pre; }
+  pre.code .tag { color: var(--fail); }
+  pre.code .cm { color: var(--ink-faint); }
+  pre.code .ok { color: var(--pass); }
+
+  .gone { border: 1px dashed var(--fail); border-radius: 5px; padding: 22px;
+          background: var(--fail-soft); text-align: center; }
+  .gone .x { font-family: var(--mono); font-size: 22px; color: var(--fail); letter-spacing: 0.06em; }
+  .gone .sub { font-family: var(--mono); font-size: 12px; color: var(--ink-soft); margin-top: 6px; }
+
+  .abc { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+  .ans { border: 1px solid var(--rule); border-radius: 5px; padding: 14px 16px;
+         display: flex; flex-direction: column; gap: 8px; background: var(--surface); }
+  .ans.wrong { border-color: var(--fail); background: var(--fail-soft); }
+  .ans .who { font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em;
+              text-transform: uppercase; color: var(--ink-faint); }
+  .ans .txt { font-family: var(--mono); font-size: 13.5px; line-height: 1.5; }
+  .ans.wrong .txt { color: var(--fail); font-size: 16px; font-weight: 600; }
+  .ans .sc { font-family: var(--mono); font-size: 11px; color: var(--ink-faint);
+             display: flex; gap: 10px; flex-wrap: wrap; }
+  .ans .doc { font-family: var(--mono); font-size: 10.5px; color: var(--ink-faint);
+              word-break: break-all; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+
+<div class="page">
+
+  <header class="masthead">
+    <div class="eyebrow">Lab 10 · Data Pipeline &amp; Data Observability</div>
+    <h1>Dữ liệu hỏng ở đầu vào thì câu trả lời hỏng ở đầu ra</h1>
+    <p class="lede">
+      Và nếu bạn giữ lại một bản sao nguyên gốc, bạn dựng lại được mọi thứ —
+      chính xác đến từng byte. Bấm ▶ để xem hệ thống chạy từng bước.
+    </p>
+    <div class="meta">
+      <span>Nhóm Hihihaha · K4</span>
+      <span>24 bài báo từ Crossref</span>
+      <span>45 câu hỏi đánh giá đóng băng</span>
+      <span>3 trạng thái · 1 bộ test duy nhất</span>
+    </div>
+  </header>
+
+  <!-- ================= PLAYER ================= -->
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Luồng động</div>
+      <h2>Hệ thống đang làm gì, theo từng bước</h2>
+    </div>
+
+    <div class="player">
+      <div class="stage">
+        <svg viewBox="0 0 920 400" role="img"
+             aria-label="Sơ đồ động của pipeline: Crossref API tạo raw snapshot, làm sạch thành clean dataset, dựng ba index baseline, corrupted và repaired. Nhánh repaired làm sạch lại từ raw snapshot chứ không gọi lại API. Cả ba được chấm bằng cùng một bộ test đóng băng 45 câu.">
+          <defs>
+            <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6"
+                    orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+            <marker id="arA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6"
+                    orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker>
+            <marker id="arF" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6"
+                    orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--fail)"/></marker>
+          </defs>
+
+          <!-- edges (behind nodes) -->
+          <path class="edge" id="e1" pathLength="1" d="M142,196 H176" marker-end="url(#ar)"/>
+          <path class="edge" id="e2" pathLength="1" d="M344,196 H386" marker-end="url(#ar)"/>
+          <path class="edge" id="e3" pathLength="1" d="M475,168 V68 H590" marker-end="url(#ar)"/>
+          <path class="edge dim-fail" id="e4" pathLength="1" d="M554,196 H590" marker-end="url(#arF)"/>
+          <path class="edge" id="e5" pathLength="1" d="M265,224 V324 H590" marker-end="url(#arA)"/>
+          <path class="edge" id="e6" pathLength="1" d="M750,68 H790" marker-end="url(#ar)"/>
+          <path class="edge dim-fail" id="e7" pathLength="1" d="M750,196 H790" marker-end="url(#arF)"/>
+          <path class="edge" id="e8" pathLength="1" d="M750,324 H790" marker-end="url(#ar)"/>
+
+          <text class="elabel" id="l1" x="159" y="187" text-anchor="middle">gọi API</text>
+          <text class="elabel" id="l2" x="365" y="187" text-anchor="middle">làm sạch</text>
+          <text class="elabel" id="l3" x="533" y="58"  text-anchor="middle">index</text>
+          <text class="elabel bad" id="l4" x="572" y="187" text-anchor="middle">gây lỗi</text>
+          <text class="elabel hi" id="l5" x="428" y="314" text-anchor="middle">làm sạch lại từ bản gốc — KHÔNG gọi lại API</text>
+
+          <!-- nodes -->
+          <g class="node" id="n-api">
+            <rect class="box" x="24" y="168" width="118" height="56" rx="4"/>
+            <text class="ttl" x="83" y="192" font-size="12" text-anchor="middle">Crossref</text>
+            <text x="83" y="208" font-size="12" text-anchor="middle">API</text>
+          </g>
+          <g class="node" id="n-raw">
+            <rect class="box" x="186" y="168" width="158" height="56" rx="4"/>
+            <text class="ttl" x="265" y="191" font-size="12" text-anchor="middle">Raw snapshot</text>
+            <text x="265" y="208" font-size="11" text-anchor="middle" opacity=".7">bản gốc niêm phong</text>
+          </g>
+          <g class="node" id="n-clean">
+            <rect class="box" x="396" y="168" width="158" height="56" rx="4"/>
+            <text class="ttl" x="475" y="191" font-size="12" text-anchor="middle">Clean dataset</text>
+            <text x="475" y="208" font-size="11" text-anchor="middle" opacity=".7">24 dòng</text>
+          </g>
+          <g class="node" id="n-base">
+            <rect class="box" x="600" y="40" width="150" height="56" rx="4"/>
+            <text class="ttl" x="675" y="64" font-size="12" text-anchor="middle">Index BASELINE</text>
+            <text class="val" id="v-base" x="675" y="81" font-size="11" text-anchor="middle">hit 1.0000</text>
+          </g>
+          <g class="node" id="n-corr">
+            <rect class="box" x="600" y="168" width="150" height="56" rx="4"/>
+            <text class="ttl" x="675" y="192" font-size="12" text-anchor="middle">Index CORRUPTED</text>
+            <text class="val" id="v-corr" x="675" y="209" font-size="11" text-anchor="middle">hit 0.8667</text>
+          </g>
+          <g class="node" id="n-rep">
+            <rect class="box" x="600" y="296" width="150" height="56" rx="4"/>
+            <text class="ttl" x="675" y="320" font-size="12" text-anchor="middle">Index REPAIRED</text>
+            <text class="val" id="v-rep" x="675" y="337" font-size="11" text-anchor="middle">hit 1.0000</text>
+          </g>
+          <g class="node" id="n-test">
+            <rect class="box" x="798" y="40" width="102" height="312" rx="4" stroke-dasharray="4 3"/>
+            <text class="ttl" x="849" y="176" font-size="11.5" text-anchor="middle">Bộ test</text>
+            <text x="849" y="192" font-size="11.5" text-anchor="middle">đóng băng</text>
+            <text x="849" y="214" font-size="14" text-anchor="middle">45 câu</text>
+            <text x="849" y="234" font-size="11" text-anchor="middle" opacity=".7">dùng chung</text>
+            <text x="849" y="250" font-size="11" text-anchor="middle" opacity=".7">cả 3 nhánh</text>
+          </g>
+        </svg>
+      </div>
+
+      <div class="deck">
+        <div class="caption">
+          <span class="cap-step" id="capStep">Bước 1 / 9</span>
+          <span class="cap-title" id="capTitle">Gọi Crossref API</span>
+          <div class="cap-say" id="capSay">Nhấn ▶ để bắt đầu.</div>
+        </div>
+
+        <div class="readout">
+          <div class="cell"><span class="k">Bản ghi</span><span class="v idle" id="rRows">—</span></div>
+          <div class="cell"><span class="k">Tìm đúng tài liệu</span><span class="v idle" id="rHit">—</span></div>
+          <div class="cell"><span class="k">Cổng chất lượng</span><span class="v idle" id="rGate">—</span></div>
+          <div class="cell"><span class="k">Độ tươi mới</span><span class="v idle" id="rFresh">—</span></div>
+        </div>
+      </div>
+
+      <div class="track"><i id="bar"></i></div>
+      <div class="controls">
+        <button class="btn primary" id="btnPlay">▶ Chạy</button>
+        <button class="btn" id="btnPrev">◀ Lùi</button>
+        <button class="btn" id="btnNext">Tiến ▶</button>
+        <button class="btn" id="btnReset">↻ Về đầu</button>
+        <span class="hint">Phím cách = chạy/dừng · ← → = chuyển bước</span>
+        <div class="dots" id="dots"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= VERDICT ================= -->
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Kết quả trong một cái nhìn</div>
+      <h2>Tỷ lệ tìm đúng tài liệu</h2>
+    </div>
+    <div class="tiles">
+      <div class="tile">
+        <span class="state">Baseline · dữ liệu sạch</span>
+        <span class="big">1.0000</span>
+        <span class="chip pass">12/12 CHECK PASS</span>
+        <span class="note">Mọi cổng kiểm tra đều xanh.</span>
+      </div>
+      <div class="tile is-fail">
+        <span class="state">Corrupted · sau khi gây lỗi</span>
+        <span class="big">0.8667</span>
+        <span class="chip fail">8/12 · 4 CHECK FAIL</span>
+        <span class="note">Cổng kiểm tra báo động trước khi người dùng kịp nhận ra.</span>
+      </div>
+      <div class="tile">
+        <span class="state">Repaired · phục hồi từ bản gốc</span>
+        <span class="big">1.0000</span>
+        <span class="chip pass">12/12 CHECK PASS</span>
+        <span class="note">Về đúng mức ban đầu, không sai một chữ số.</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= ANALOGY ================= -->
+  <section class="prose">
+    <div class="sec-head">
+      <div class="eyebrow">Nói cho dễ hiểu</div>
+      <h2>Giống như một nhà máy nước</h2>
+    </div>
+    <p>
+      Hệ thống của nhóm giống một nhà máy nước. Nước lấy từ sông
+      (<strong>Crossref API</strong>), qua bể lọc (<strong>làm sạch</strong>),
+      rồi bơm tới vòi nhà dân (<strong>câu trả lời của chatbot</strong>).
+    </p>
+    <p>
+      Khi có người đổ bậy vào bể, nước ra vòi sẽ đục — nhưng dân phát hiện thì đã muộn.
+      Vì vậy nhà máy đặt một <strong>trạm xét nghiệm</strong> ngay trên đường ống —
+      đó chính là <em>data observability</em>. Nó đo ba thứ: nước có
+      <strong>đủ</strong> không, có <strong>mới</strong> không, có bị <strong>trùng lặp</strong> không.
+    </p>
+    <p>
+      Và mấu chốt: nhà máy luôn giữ một <strong>chai mẫu niêm phong</strong> của lô nước gốc.
+      Khi sự cố xảy ra, họ pha lại từ chai mẫu đó — <em>không</em> ra sông múc lại,
+      vì nước sông hôm nay đã khác hôm qua. Trong bài này, chai mẫu là
+      <code>data/raw/crossref_records.json</code>.
+    </p>
+  </section>
+
+  <!-- ================= TRACE ONE RECORD ================= -->
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Zoom vào từng node</div>
+      <h2>Theo chân một bài báo</h2>
+      <p class="lede" style="font-size:16px">
+        Cùng một bản ghi, đi qua toàn bộ đường ống. Đây là dữ liệu thật trong repo, không phải ví dụ minh họa.
+      </p>
+    </div>
+
+    <div class="panel">
+      <div class="trace">
+
+        <div class="stn">
+          <div class="rail"><span class="pip">1</span></div>
+          <div class="stn-body">
+            <span class="stn-lbl">Node · Crossref API</span>
+            <span class="stn-h">Dữ liệu thô trả về, còn nguyên thẻ XML</span>
+            <p class="stn-p">
+              Bài <code>SafeRAG</code> — DOI <code>10.2118/234689-pa</code>, bài mới nhất trong tập 24 bài.
+              Crossref trả về JSON với tóm tắt bọc trong thẻ <code>jats</code>, tác giả là mảng object lồng nhau.
+            </p>
+            <pre class="code"><span class="cm">// data/raw/crossref_response.json</span>
+"DOI": "10.2118/234689-pa",
+"title": ["SafeRAG: A Large-Language-Model-Based Multistage
+           Retrieval-Augmented Framework for Oil and Gas…"],
+
+"abstract": "<span class="tag">&lt;jats:title&gt;</span>Summary<span class="tag">&lt;/jats:title&gt;</span>\n
+              <span class="tag">&lt;jats:p&gt;</span>In high-risk industrial settings,
+              leveraging large language models (LLMs) for…",
+
+"author": [
+  { "ORCID": "https://orcid.org/0000-0001-7491-5201",
+    "given": "Qianwen", "family": "Cao", "sequence": "first",
+    "affiliation": [{ "name": "College of Safety and Ocean
+                       Engineering, China University of Petroleum…" }] },
+  <span class="cm">… 3 tác giả nữa, cùng cấu trúc</span>
+],
+
+"published-online": { "date-parts": [[2026, 8, 5]] },
+"issued":           { "date-parts": [[2026, 8, 1]] },
+"subject": null</pre>
+          </div>
+        </div>
+
+        <div class="stn">
+          <div class="rail"><span class="pip">2</span></div>
+          <div class="stn-body">
+            <span class="stn-lbl">Node · Cleaning</span>
+            <span class="stn-h">Năm quy tắc biến JSON lồng nhau thành một dòng phẳng</span>
+            <div class="scroll-x">
+              <table>
+                <thead><tr><th>Trường</th><th>Crossref trả về</th><th>Quy tắc</th><th>Sau khi sạch</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <td class="key">title</td>
+                    <td class="key">mảng 1 phần tử</td>
+                    <td>lấy phần tử đầu, gộp khoảng trắng</td>
+                    <td class="key">SafeRAG: A Large-Language-Model…</td>
+                  </tr>
+                  <tr>
+                    <td class="key">abstract → summary</td>
+                    <td class="key">có <code>&lt;jats:title&gt;</code>, <code>&lt;jats:p&gt;</code></td>
+                    <td>bỏ toàn bộ thẻ XML, gộp khoảng trắng</td>
+                    <td class="key">Summary In high-risk industrial… <br><span style="opacity:.6">1.404 ký tự</span></td>
+                  </tr>
+                  <tr>
+                    <td class="key">author</td>
+                    <td class="key">4 object có ORCID + affiliation</td>
+                    <td>ghép <code>given</code> + <code>family</code>, nối bằng dấu phẩy</td>
+                    <td class="key">Qianwen Cao, Chiyu Zhang,<br>Junxiong Ning, Gongru Li</td>
+                  </tr>
+                  <tr>
+                    <td class="key">published-online</td>
+                    <td class="key">[[2026, 8, 5]]</td>
+                    <td>ghép thành YYYY-MM-DD</td>
+                    <td class="key">2026-08-05</td>
+                  </tr>
+                  <tr>
+                    <td class="key">age_days</td>
+                    <td class="key">— (không có sẵn)</td>
+                    <td>hôm nay trừ ngày xuất bản</td>
+                    <td class="key">1 ngày</td>
+                  </tr>
+                  <tr>
+                    <td class="key">subject → categories</td>
+                    <td class="key">null</td>
+                    <td>để rỗng</td>
+                    <td class="key" style="opacity:.6">(rỗng)</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="stn-p">
+              Dòng cuối là một khiếm khuyết thật: Crossref không trả <code>subject</code> cho bài này,
+              nên chủ đề bị bỏ trống trong văn bản đem đi nhúng. Đáng nói ra khi trình bày.
+            </p>
+          </div>
+        </div>
+
+        <div class="stn">
+          <div class="rail"><span class="pip">3</span></div>
+          <div class="stn-body">
+            <span class="stn-lbl">Node · text_for_embedding</span>
+            <span class="stn-h">Chuỗi văn bản này mới là thứ trở thành vector</span>
+            <p class="stn-p">
+              Toàn bộ cột dưới đây được MiniLM nén thành một vector 384 chiều.
+              Câu hỏi của người dùng cũng thành vector, rồi so cosine để tìm bài gần nhất.
+            </p>
+            <pre class="code">Title: SafeRAG: A Large-Language-Model-Based Multistage
+       Retrieval-Augmented Framework for Oil and Gas Safety Report Generation
+Authors: Qianwen Cao, Chiyu Zhang, Junxiong Ning, Gongru Li
+Categories: <span class="cm">← rỗng</span>
+Published: 2026-08-05
+Summary: Summary In high-risk industrial settings, leveraging large
+         language models (LLMs) for automated accident analysis and
+         generating safety reports has emerged as an efficient workflow…
+
+<span class="cm">↓ MiniLM · all-MiniLM-L6-v2</span>
+<span class="cm">[ 0.041, -0.117, 0.208, …  384 chiều  … ]</span></pre>
+          </div>
+        </div>
+
+        <div class="stn bad">
+          <div class="rail"><span class="pip">4</span></div>
+          <div class="stn-body">
+            <span class="stn-lbl">Node · Corruption</span>
+            <span class="stn-h">Bản ghi bị xóa khỏi dataset</span>
+            <p class="stn-p">
+              Kịch bản <code>drop_latest_records</code> xóa 2 bài mới nhất — và đây là một trong hai.
+              Không phải bị làm hỏng, mà là <strong>biến mất hoàn toàn</strong>.
+            </p>
+            <div class="gone">
+              <div class="x">10.2118/234689-pa &nbsp;—&nbsp; KHÔNG TỒN TẠI</div>
+              <div class="sub">bị loại khỏi index CORRUPTED · vector không còn trong ChromaDB</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stn bad">
+          <div class="rail"><span class="pip">5</span></div>
+          <div class="stn-body">
+            <span class="stn-lbl">Node · Đánh giá · câu eval-2</span>
+            <span class="stn-h">Hệ thống không nói “tôi không biết” — nó trả lời sai một cách tự tin</span>
+            <p class="stn-p">
+              <strong>Câu hỏi:</strong> <em>Who authored the paper ‘SafeRAG: A Large-Language-Model-Based
+              Multistage Retrieval-Augmented Framework for Oil and Gas Safety Report Generation’?</em><br>
+              <strong>Đáp án chuẩn:</strong> Qianwen Cao, Chiyu Zhang, Junxiong Ning, Gongru Li
+            </p>
+            <div class="abc">
+              <div class="ans">
+                <span class="who">Baseline</span>
+                <span class="txt">Qianwen Cao, Chiyu Zhang, Junxiong Ning, Gongru Li</span>
+                <span class="sc"><span>F1 1.000</span><span>Judge 5/5</span><span class="st pass">HIT</span></span>
+                <span class="doc">top-1: 10.2118/234689-pa ✓</span>
+              </div>
+              <div class="ans wrong">
+                <span class="who">Corrupted</span>
+                <span class="txt">AMOS MBEKI NYAGAR</span>
+                <span class="sc"><span>F1 0.000</span><span>Judge 1/5</span><span class="st fail">MISS</span></span>
+                <span class="doc">top-1: 10.21203/rs.3.rs-9770645/v1 ✗</span>
+              </div>
+              <div class="ans">
+                <span class="who">Repaired</span>
+                <span class="txt">Qianwen Cao, Chiyu Zhang, Junxiong Ning, Gongru Li</span>
+                <span class="sc"><span>F1 1.000</span><span>Judge 5/5</span><span class="st pass">HIT</span></span>
+                <span class="doc">top-1: 10.2118/234689-pa ✓</span>
+              </div>
+            </div>
+            <p class="stn-p">
+              Đây là điều nguy hiểm nhất của RAG khi dữ liệu thiếu. Bài đúng biến mất, hệ thống lấy
+              bài <em>gần nhất còn lại</em> trong không gian vector và lôi tên tác giả từ đó ra —
+              <strong>AMOS MBEKI NYAGAR</strong>, một người hoàn toàn không liên quan.
+              Không có cảnh báo, không có “không tìm thấy”. Người dùng đọc xong sẽ tin.
+            </p>
+          </div>
+        </div>
+
+        <div class="stn good">
+          <div class="rail"><span class="pip">6</span></div>
+          <div class="stn-body">
+            <span class="stn-lbl">Node · Repair</span>
+            <span class="stn-h">Làm sạch lại từ bản gốc, không chạy lại quy tắc nào khác</span>
+            <p class="stn-p">
+              Pipeline đọc lại <code>crossref_records.json</code> ở node 1, chạy đúng hàm
+              <code>build_clean_dataframe()</code> ở node 2 — cùng dữ liệu vào, cùng quy tắc,
+              nên cho ra cùng kết quả.
+            </p>
+            <pre class="code"><span class="cm">// node 1 (bản gốc, chưa hề bị đụng tới)</span>
+raw_records = load_raw_records("data/raw/crossref_records.json")
+
+<span class="cm">// node 2 (đúng hàm làm sạch cũ)</span>
+repaired_df = build_clean_dataframe(raw_records, run_date)
+
+<span class="ok">→ 10.2118/234689-pa quay lại đầy đủ</span>
+<span class="ok">→ text_for_embedding giống hệt node 3</span>
+<span class="ok">→ SHA-256 toàn file trùng khớp với papers_clean.csv</span></pre>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="prose">
+      <h3>Phát hiện đáng giá nhất từ việc truy vết</h3>
+      <p>
+        Nhóm dùng 5 kịch bản phá dữ liệu. Nhưng khi soi lại 45 câu hỏi,
+        <strong>cả 6 câu bị mất khả năng tìm đúng tài liệu đều thuộc 2 bài bị xóa</strong> —
+        không câu nào rơi vào các bài bị xóa tóm tắt, chèn nhiễu hay làm cũ ngày.
+      </p>
+      <p>
+        Nghĩa là trong 5 kịch bản, chỉ <code>drop_latest_records</code> thực sự kéo tụt điểm đánh giá.
+        Bốn kịch bản còn lại vẫn có giá trị — chúng làm <em>cổng kiểm tra chất lượng</em> chuyển đỏ, tức là
+        được phát hiện. Nhưng chúng chưa chạm vào tài liệu nào có trong bộ câu hỏi nên chưa ảnh hưởng câu trả lời.
+      </p>
+      <p>
+        Đây chính là cảnh báo mà đề bài đưa ra: <em>“kịch bản gây lỗi phải đụng trúng ít nhất một tài liệu
+        nằm trong bộ câu hỏi test”</em>. Nhóm đã đụng trúng — nhưng chỉ bằng một kịch bản.
+        Muốn mạnh hơn, bước tiếp theo là đối chiếu <code>corruption_log.json</code> với
+        <code>ground_truth_doc_ids</code> rồi cố ý nhắm các kịch bản còn lại vào đúng những bài được hỏi.
+      </p>
+    </div>
+  </section>
+
+  <!-- ================= SMALL MULTIPLES ================= -->
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Bằng chứng</div>
+      <h2>Bốn chỉ số, cùng một hình dạng</h2>
+      <p class="lede" style="font-size:16px">
+        Tụt xuống khi dữ liệu hỏng, bật lại đúng mức cũ sau khi sửa. Mỗi ô có thang đo riêng.
+      </p>
+    </div>
+    <div class="panel">
+      <div class="facets">
+        <div class="facet">
+          <span class="facet-title">retrieval_hit_rate</span>
+          <span class="facet-sub">tỷ lệ tìm trúng tài liệu</span>
+          <svg viewBox="0 0 200 108" role="img" aria-label="retrieval hit rate: baseline 1.0000, corrupted 0.8667, repaired 1.0000">
+            <line x1="30" y1="82" x2="170" y2="82" stroke="currentColor" stroke-width="1" opacity="0.2"/>
+            <polyline points="30,26.7 100,71.1 170,26.7" fill="none" stroke="var(--accent)" stroke-width="2"/>
+            <circle cx="30" cy="26.7" r="4.5" fill="var(--accent)"><title>Baseline 1.0000</title></circle>
+            <circle cx="100" cy="71.1" r="4.5" fill="var(--fail)"><title>Corrupted 0.8667</title></circle>
+            <circle cx="170" cy="26.7" r="4.5" fill="var(--accent)"><title>Repaired 1.0000</title></circle>
+            <g font-family="ui-monospace, Menlo, monospace" font-size="10" fill="currentColor" text-anchor="middle">
+              <text x="30" y="18">1.0000</text><text x="100" y="88">0.8667</text><text x="170" y="18">1.0000</text>
+            </g>
+            <g font-family="ui-monospace, Menlo, monospace" font-size="9" fill="currentColor" opacity="0.55" text-anchor="middle">
+              <text x="30" y="103">base</text><text x="100" y="103">corr</text><text x="170" y="103">rep</text>
+            </g>
+          </svg>
+        </div>
+        <div class="facet">
+          <span class="facet-title">mean_token_f1</span>
+          <span class="facet-sub">độ khớp từ vựng của câu trả lời</span>
+          <svg viewBox="0 0 200 108" role="img" aria-label="mean token F1: baseline 0.7547, corrupted 0.6221, repaired 0.7547">
+            <line x1="30" y1="82" x2="170" y2="82" stroke="currentColor" stroke-width="1" opacity="0.2"/>
+            <polyline points="30,28.4 100,72.6 170,28.4" fill="none" stroke="var(--accent)" stroke-width="2"/>
+            <circle cx="30" cy="28.4" r="4.5" fill="var(--accent)"><title>Baseline 0.7547</title></circle>
+            <circle cx="100" cy="72.6" r="4.5" fill="var(--fail)"><title>Corrupted 0.6221</title></circle>
+            <circle cx="170" cy="28.4" r="4.5" fill="var(--accent)"><title>Repaired 0.7547</title></circle>
+            <g font-family="ui-monospace, Menlo, monospace" font-size="10" fill="currentColor" text-anchor="middle">
+              <text x="30" y="20">0.7547</text><text x="100" y="89">0.6221</text><text x="170" y="20">0.7547</text>
+            </g>
+            <g font-family="ui-monospace, Menlo, monospace" font-size="9" fill="currentColor" opacity="0.55" text-anchor="middle">
+              <text x="30" y="103">base</text><text x="100" y="103">corr</text><text x="170" y="103">rep</text>
+            </g>
+          </svg>
+        </div>
+        <div class="facet">
+          <span class="facet-title">judge_accuracy</span>
+          <span class="facet-sub">tỷ lệ câu trả lời được chấm đúng</span>
+          <svg viewBox="0 0 200 108" role="img" aria-label="judge accuracy: baseline 0.6889, corrupted 0.5778, repaired 0.6889">
+            <line x1="30" y1="82" x2="170" y2="82" stroke="currentColor" stroke-width="1" opacity="0.2"/>
+            <polyline points="30,28.4 100,72.9 170,28.4" fill="none" stroke="var(--accent)" stroke-width="2"/>
+            <circle cx="30" cy="28.4" r="4.5" fill="var(--accent)"><title>Baseline 0.6889</title></circle>
+            <circle cx="100" cy="72.9" r="4.5" fill="var(--fail)"><title>Corrupted 0.5778</title></circle>
+            <circle cx="170" cy="28.4" r="4.5" fill="var(--accent)"><title>Repaired 0.6889</title></circle>
+            <g font-family="ui-monospace, Menlo, monospace" font-size="10" fill="currentColor" text-anchor="middle">
+              <text x="30" y="20">0.6889</text><text x="100" y="89">0.5778</text><text x="170" y="20">0.6889</text>
+            </g>
+            <g font-family="ui-monospace, Menlo, monospace" font-size="9" fill="currentColor" opacity="0.55" text-anchor="middle">
+              <text x="30" y="103">base</text><text x="100" y="103">corr</text><text x="170" y="103">rep</text>
+            </g>
+          </svg>
+        </div>
+        <div class="facet">
+          <span class="facet-title">mean_judge_score</span>
+          <span class="facet-sub">điểm chất lượng, thang 1–5</span>
+          <svg viewBox="0 0 200 108" role="img" aria-label="mean judge score: baseline 3.711, corrupted 3.267, repaired 3.711">
+            <line x1="30" y1="82" x2="170" y2="82" stroke="currentColor" stroke-width="1" opacity="0.2"/>
+            <polyline points="30,28.9 100,73.3 170,28.9" fill="none" stroke="var(--accent)" stroke-width="2"/>
+            <circle cx="30" cy="28.9" r="4.5" fill="var(--accent)"><title>Baseline 3.711</title></circle>
+            <circle cx="100" cy="73.3" r="4.5" fill="var(--fail)"><title>Corrupted 3.267</title></circle>
+            <circle cx="170" cy="28.9" r="4.5" fill="var(--accent)"><title>Repaired 3.711</title></circle>
+            <g font-family="ui-monospace, Menlo, monospace" font-size="10" fill="currentColor" text-anchor="middle">
+              <text x="30" y="21">3.711</text><text x="100" y="89">3.267</text><text x="170" y="21">3.711</text>
+            </g>
+            <g font-family="ui-monospace, Menlo, monospace" font-size="9" fill="currentColor" opacity="0.55" text-anchor="middle">
+              <text x="30" y="103">base</text><text x="100" y="103">corr</text><text x="170" y="103">rep</text>
+            </g>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= HASH ================= -->
+  <section>
+    <div class="callout">
+      <h3>Bằng chứng mạnh nhất: hai file trùng nhau đến từng byte</h3>
+      <div class="hash scroll-x">
+        <div><b>d9f69f41b1991ed1…</b>&nbsp;&nbsp;papers_clean.csv</div>
+        <div><b>d9f69f41b1991ed1…</b>&nbsp;&nbsp;papers_clean_repaired.csv</div>
+        <div style="opacity:.6">0e4d95fe60409991…&nbsp;&nbsp;papers_clean_corrupted.csv</div>
+      </div>
+      <p style="font-size:14px;color:var(--ink-soft)">
+        Mã băm SHA-256 của dữ liệu sau khi sửa <strong>trùng khớp tuyệt đối</strong> với dữ liệu gốc.
+        Không phải “nhìn có vẻ hồi rồi” — mà là khôi phục chính xác. Nếu nhóm gọi lại Crossref
+        thay vì dùng bản sao gốc, hai mã này sẽ không bao giờ giống nhau.
+      </p>
+    </div>
+  </section>
+
+  <!-- ================= QUALITY GATE ================= -->
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Trạm xét nghiệm</div>
+      <h2>Check nào đã bắt được sự cố</h2>
+      <p class="lede" style="font-size:16px">
+        Bốn dòng tô đậm là nơi hệ thống giám sát lên tiếng — trước khi ai kịp đọc một câu trả lời sai.
+      </p>
+    </div>
+    <div class="panel scroll-x">
+      <table>
+        <caption>12 phép kiểm tra chất lượng, chạy trên cả ba trạng thái</caption>
+        <thead><tr><th>Phép kiểm tra</th><th>Ý nghĩa</th><th>Baseline</th><th>Corrupted</th><th>Repaired</th></tr></thead>
+        <tbody>
+          <tr><td class="key">schema_required_columns</td><td>Đủ 6 cột bắt buộc</td><td class="st pass">PASS</td><td class="st pass">PASS</td><td class="st pass">PASS</td></tr>
+          <tr><td class="key">row_count_minimum</td><td>Đủ số dòng tối thiểu</td><td class="st pass">PASS</td><td class="st pass">PASS</td><td class="st pass">PASS</td></tr>
+          <tr><td class="key">paper_id_not_null</td><td>Khóa chính không rỗng</td><td class="st pass">PASS</td><td class="st pass">PASS</td><td class="st pass">PASS</td></tr>
+          <tr class="flipped"><td class="key">paper_id_unique</td><td>Không có bản ghi trùng</td><td class="st pass">PASS</td><td class="st fail">FAIL · 2</td><td class="st pass">PASS</td></tr>
+          <tr><td class="key">title_not_null</td><td>Bài nào cũng có tiêu đề</td><td class="st pass">PASS</td><td class="st pass">PASS</td><td class="st pass">PASS</td></tr>
+          <tr><td class="key">title_min_length</td><td>Tiêu đề không bị cắt cụt</td><td class="st pass">PASS</td><td class="st pass">PASS</td><td class="st pass">PASS</td></tr>
+          <tr class="flipped"><td class="key">summary_not_blank</td><td>Tóm tắt không bị xóa trắng</td><td class="st pass">PASS</td><td class="st fail">FAIL · 3</td><td class="st pass">PASS</td></tr>
+          <tr class="flipped"><td class="key">summary_min_length</td><td>Tóm tắt đủ dài để embed</td><td class="st pass">PASS</td><td class="st fail">FAIL · 3</td><td class="st pass">PASS</td></tr>
+          <tr><td class="key">text_for_embedding_not_blank</td><td>Cột sinh vector có nội dung</td><td class="st pass">PASS</td><td class="st pass">PASS</td><td class="st pass">PASS</td></tr>
+          <tr><td class="key">age_days_not_null</td><td>Tính được tuổi tài liệu</td><td class="st pass">PASS</td><td class="st pass">PASS</td><td class="st pass">PASS</td></tr>
+          <tr class="flipped"><td class="key">freshness_within_threshold</td><td>Không có tài liệu cũ hơn 180 ngày</td><td class="st pass">PASS</td><td class="st fail">FAIL · 1</td><td class="st pass">PASS</td></tr>
+          <tr><td class="key">age_days_non_negative</td><td>Không có ngày ở tương lai</td><td class="st pass">PASS</td><td class="st pass">PASS</td><td class="st pass">PASS</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="prose">
+      <h3>Một tín hiệu tinh vi mà bảng trên không thấy</h3>
+      <p>
+        Kịch bản “xóa 2 bài mới nhất” <em>không</em> làm rớt phép kiểm tra nào — 24 dòng vẫn còn đủ
+        vì có 2 bản ghi trùng bù vào. Nó chỉ lộ ra ở một chỗ duy nhất:
+      </p>
+      <table style="max-width:520px">
+        <tbody>
+          <tr><td class="key">latest_published · baseline</td><td class="num">2026-08-05</td></tr>
+          <tr class="flipped"><td class="key">latest_published · corrupted</td><td class="num">2026-07-10</td></tr>
+          <tr><td class="key">latest_published · repaired</td><td class="num">2026-08-05</td></tr>
+        </tbody>
+      </table>
+      <p>
+        Ngày mới nhất lùi lại gần một tháng. Đây là lý do giám sát dữ liệu phải theo dõi
+        <strong>độ tươi mới</strong> chứ không chỉ <strong>số lượng</strong> — có những sự cố
+        chỉ hiện ra ở một chiều đo duy nhất.
+      </p>
+    </div>
+  </section>
+
+  <!-- ================= SPEAKER ================= -->
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Kịch bản thuyết trình</div>
+      <h2>Kể trong năm phút</h2>
+    </div>
+    <ol class="steps">
+      <li><div class="say"><span class="line">“Nhóm mình xây một chatbot trả lời câu hỏi về bài báo khoa học.”</span>
+        <span class="why">Mở bằng thứ ai cũng hình dung được. Chưa nói pipeline, chưa nói vector.</span></div></li>
+      <li><div class="say"><span class="line">“Câu hỏi đặt ra: nếu dữ liệu đầu vào bị hỏng, chatbot có trả lời sai không? Sai bao nhiêu?”</span>
+        <span class="why">Đặt câu hỏi trước khi bấm ▶. Người nghe cần biết mình đang tìm gì.</span></div></li>
+      <li><div class="say"><span class="line">“Bọn mình cố tình phá dữ liệu theo 5 cách, rồi đo lại bằng đúng bộ câu hỏi cũ.”</span>
+        <span class="why">Nhấn chữ <em>đúng bộ câu hỏi cũ</em>. Dừng ở bước 4 của trình phát, chỉ vào panel “45 câu, dùng chung cả 3 nhánh”.</span></div></li>
+      <li><div class="say"><span class="line">“Tỷ lệ tìm đúng tụt từ 100% xuống 87%. Cả bốn chỉ số đều tụt.”</span>
+        <span class="why">Chỉ vào bốn biểu đồ nhỏ — chúng có cùng một hình chữ V. Không cần đọc số.</span></div></li>
+      <li><div class="say"><span class="line">“Nhưng trước khi người dùng kịp thấy, trạm giám sát đã báo động: 4 trên 12 phép kiểm tra chuyển đỏ.”</span>
+        <span class="why">Đây là ý chính của cả bài lab. Data observability = phát hiện sớm, không phải sửa sau.</span></div></li>
+      <li><div class="say"><span class="line">“Sửa xong, mọi thứ về đúng như cũ — mã băm của file trùng khớp từng byte.”</span>
+        <span class="why">Kết bằng bằng chứng mạnh nhất. Nếu ai hỏi “sao không gọi lại API?”, trả lời: dữ liệu Crossref thay đổi mỗi ngày, gọi lại thì không còn so sánh công bằng được nữa.</span></div></li>
+    </ol>
+  </section>
+
+  <!-- ================= HONESTY ================= -->
+  <section>
+    <div class="callout caution">
+      <h3>Điều nên tự nói ra trước khi bị hỏi</h3>
+      <p style="font-size:14.5px;color:var(--ink-soft)">
+        <code>retrieval_hit_rate = 1.0000</code> ở baseline <strong>không</strong> phải thành tích của hệ thống
+        tìm kiếm. Bộ câu hỏi được sinh tự động từ chính dữ liệu sạch, nên câu nào cũng chắc chắn có
+        tài liệu tương ứng — đây là trần trên do cách xây test set, không phải do mô hình giỏi.
+        Nói trước điều này thì người nghe tin phần còn lại hơn.
+      </p>
+      <p style="font-size:14.5px;color:var(--ink-soft)">
+        Tương tự, <code>mean_token_f1</code> không bao giờ đạt 1.0 vì nó chỉ đếm từ trùng nhau giữa
+        câu trả lời và đáp án chuẩn — mà câu trả lời luôn có thêm từ đệm và cách diễn đạt khác.
+      </p>
+    </div>
+  </section>
+
+</div>
+
+<script>
+(function () {
+  var STEPS = [
+    { title: "Gọi Crossref API",
+      say: "Hệ thống gửi truy vấn tới Crossref, lọc lấy bài có đủ tiêu đề và tóm tắt. Nếu gặp lỗi 429 hoặc 503 thì tự thử lại sau một khoảng chờ.",
+      nodes: ["n-api"], live: "n-api", edges: [], labels: [],
+      read: { rows: ["—","idle"], hit: ["—","idle"], gate: ["—","idle"], fresh: ["—","idle"] } },
+
+    { title: "Lưu bản gốc, chưa đụng vào",
+      say: "Response thô được ghi ra đĩa nguyên vẹn trước khi xử lý bất cứ thứ gì. Đây là “chai mẫu niêm phong” — về sau chính nó sẽ cứu cả hệ thống.",
+      nodes: ["n-api","n-raw"], live: "n-raw", edges: ["e1"], labels: ["l1"],
+      read: { rows: ["24 bản ghi",""], hit: ["—","idle"], gate: ["—","idle"], fresh: ["—","idle"] } },
+
+    { title: "Làm sạch dữ liệu",
+      say: "Bỏ thẻ XML, gộp danh sách tác giả, đổi ngày về chuẩn YYYY-MM-DD, tính tuổi tài liệu, rồi ghép thành một cột văn bản dùng để sinh vector.",
+      nodes: ["n-api","n-raw","n-clean"], live: "n-clean", edges: ["e1","e2"], labels: ["l1","l2"],
+      read: { rows: ["24 dòng sạch",""], hit: ["—","idle"], gate: ["—","idle"], fresh: ["174 ngày tuổi",""] } },
+
+    { title: "Đóng băng bộ câu hỏi",
+      say: "45 câu hỏi được sinh ra từ dữ liệu sạch rồi khóa lại. Từ đây đến hết bài, cả ba trạng thái đều bị chấm bằng đúng bộ này — nếu bộ câu hỏi đổi thì mọi so sánh đều vô nghĩa.",
+      nodes: ["n-api","n-raw","n-clean","n-test"], live: "n-test", edges: ["e1","e2"], labels: ["l1","l2"],
+      read: { rows: ["24 dòng sạch",""], hit: ["—","idle"], gate: ["—","idle"], fresh: ["174 ngày tuổi",""] } },
+
+    { title: "Chạy baseline — mốc đối chứng",
+      say: "Dữ liệu sạch được nhúng thành vector 384 chiều bằng MiniLM, nạp vào ChromaDB, rồi trả lời cả 45 câu. Cổng kiểm tra chất lượng chạy song song và tất cả đều xanh.",
+      nodes: ["n-api","n-raw","n-clean","n-test","n-base"], live: "n-base",
+      edges: ["e1","e2","e3","e6"], labels: ["l1","l2","l3"], vals: ["v-base"],
+      read: { rows: ["24 dòng sạch",""], hit: ["1.0000","pass"], gate: ["12/12 PASS","pass"], fresh: ["Đạt","pass"] } },
+
+    { title: "Gây lỗi có kiểm soát",
+      say: "Năm kịch bản phá dữ liệu, cố ý nhắm vào những tài liệu <strong>có trong bộ câu hỏi</strong> — nếu phá nhầm tài liệu không ai hỏi tới thì điểm số sẽ không đổi và cả thí nghiệm vô ích." +
+           "<ul><li>xóa 2 bài mới nhất</li><li>xóa trắng 3 tóm tắt</li><li>chèn nhiễu + cắt cụt 1 tiêu đề</li><li>đổi 1 ngày xuất bản về năm 2000</li><li>nhân đôi 2 bản ghi</li></ul>",
+      nodes: ["n-api","n-raw","n-clean","n-test","n-base","n-corr"], live: null, bad: "n-corr",
+      edges: ["e1","e2","e3","e6","e4"], labels: ["l1","l2","l3","l4"], vals: ["v-base"],
+      read: { rows: ["24 dòng · 2 trùng","fail"], hit: ["1.0000","pass"], gate: ["đang kiểm tra…","idle"], fresh: ["đang kiểm tra…","idle"] } },
+
+    { title: "Đo lại — và chuông báo động kêu",
+      say: "Cùng bộ 45 câu, index dựng lại từ dữ liệu hỏng. Tỷ lệ tìm đúng tụt xuống 0.8667. Nhưng quan trọng hơn: cổng kiểm tra đã chuyển đỏ ở 4 phép — hệ thống tự phát hiện sự cố trước khi người dùng đọc phải câu trả lời sai.",
+      nodes: ["n-api","n-raw","n-clean","n-test","n-base","n-corr"], live: null, bad: "n-corr",
+      edges: ["e1","e2","e3","e6","e4","e7"], labels: ["l1","l2","l3","l4"], vals: ["v-base","v-corr"],
+      read: { rows: ["24 dòng · 2 trùng","fail"], hit: ["0.8667","fail"], gate: ["8/12 · 4 FAIL","fail"], fresh: ["Hỏng · 9000 ngày","fail"] } },
+
+    { title: "Phục hồi từ bản gốc",
+      say: "Đây là bước quyết định. Pipeline quay về <strong>raw snapshot</strong> đã niêm phong ở bước 2, chạy lại đúng logic làm sạch — đi vòng qua cả dữ liệu đã hỏng lẫn Crossref API. Gọi lại API sẽ nhận dữ liệu khác vì Crossref cập nhật mỗi ngày, và phép so sánh sẽ mất công bằng.",
+      nodes: ["n-api","n-raw","n-clean","n-test","n-base","n-corr","n-rep"], live: "n-rep", bad: "n-corr",
+      edges: ["e1","e2","e3","e6","e4","e7","e5"], labels: ["l1","l2","l3","l4","l5"], vals: ["v-base","v-corr"],
+      hiEdge: "e5",
+      read: { rows: ["24 dòng sạch lại",""], hit: ["0.8667","fail"], gate: ["đang kiểm tra…","idle"], fresh: ["đang kiểm tra…","idle"] } },
+
+    { title: "Đo lần cuối — về đúng vạch xuất phát",
+      say: "Mọi chỉ số trở lại y hệt baseline, mọi phép kiểm tra xanh trở lại. Và mã băm SHA-256 của file sạch sau khi sửa <strong>trùng khớp tuyệt đối</strong> với file gốc — đây là khôi phục chính xác, không phải xấp xỉ.",
+      nodes: ["n-api","n-raw","n-clean","n-test","n-base","n-corr","n-rep"], live: "n-rep", bad: "n-corr",
+      edges: ["e1","e2","e3","e6","e4","e7","e5","e8"], labels: ["l1","l2","l3","l4","l5"],
+      vals: ["v-base","v-corr","v-rep"], hiEdge: "e5",
+      read: { rows: ["24 dòng · hash trùng","pass"], hit: ["1.0000","pass"], gate: ["12/12 PASS","pass"], fresh: ["Đạt","pass"] } }
+  ];
+
+  var DUR = 5200;
+  var i = 0, playing = false, timer = null, tick = null, t0 = 0;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var allNodes = ["n-api","n-raw","n-clean","n-base","n-corr","n-rep","n-test"];
+  var allEdges = ["e1","e2","e3","e4","e5","e6","e7","e8"];
+  var allLabels = ["l1","l2","l3","l4","l5"];
+  var allVals = ["v-base","v-corr","v-rep"];
+
+  var dots = $("dots");
+  STEPS.forEach(function (s, k) {
+    var b = document.createElement("button");
+    b.className = "dot"; b.type = "button";
+    b.setAttribute("aria-label", "Bước " + (k + 1) + ": " + s.title);
+    b.addEventListener("click", function () { pause(); go(k); });
+    dots.appendChild(b);
+  });
+
+  function render() {
+    var s = STEPS[i];
+    allNodes.forEach(function (id) {
+      var el = $(id); if (!el) return;
+      el.classList.toggle("on", s.nodes.indexOf(id) >= 0);
+      el.classList.toggle("live", s.live === id);
+      el.classList.toggle("bad", s.bad === id);
+    });
+    allEdges.forEach(function (id) {
+      var el = $(id); if (!el) return;
+      el.classList.toggle("on", s.edges.indexOf(id) >= 0);
+      el.classList.toggle("hi", s.hiEdge === id);
+    });
+    allLabels.forEach(function (id) {
+      var el = $(id); if (!el) return;
+      el.classList.toggle("on", (s.labels || []).indexOf(id) >= 0);
+    });
+    allVals.forEach(function (id) {
+      var el = $(id); if (!el) return;
+      el.classList.toggle("on", (s.vals || []).indexOf(id) >= 0);
+    });
+
+    $("capStep").textContent = "Bước " + (i + 1) + " / " + STEPS.length;
+    $("capTitle").textContent = s.title;
+    $("capSay").innerHTML = s.say;
+
+    [["rRows", s.read.rows], ["rHit", s.read.hit], ["rGate", s.read.gate], ["rFresh", s.read.fresh]]
+      .forEach(function (p) {
+        var el = $(p[0]);
+        el.textContent = p[1][0];
+        el.className = "v" + (p[1][1] ? " " + p[1][1] : "");
+      });
+
+    Array.prototype.forEach.call(dots.children, function (d, k) {
+      d.classList.toggle("done", k < i);
+      d.classList.toggle("now", k === i);
+    });
+  }
+
+  function go(n) {
+    i = Math.max(0, Math.min(STEPS.length - 1, n));
+    render();
+    if (playing) restartTimer();
+  }
+
+  function restartTimer() {
+    clearTimeout(timer); clearInterval(tick);
+    t0 = Date.now();
+    $("bar").style.width = "0%";
+    tick = setInterval(function () {
+      var p = Math.min(1, (Date.now() - t0) / DUR);
+      $("bar").style.width = (p * 100) + "%";
+    }, 60);
+    timer = setTimeout(function () {
+      if (i < STEPS.length - 1) { go(i + 1); } else { pause(); }
+    }, DUR);
+  }
+
+  function play() {
+    if (i === STEPS.length - 1) { i = 0; render(); }
+    playing = true; $("btnPlay").textContent = "❚❚ Dừng";
+    restartTimer();
+  }
+  function pause() {
+    playing = false; $("btnPlay").textContent = "▶ Chạy";
+    clearTimeout(timer); clearInterval(tick);
+    $("bar").style.width = "0%";
+  }
+
+  $("btnPlay").addEventListener("click", function () { playing ? pause() : play(); });
+  $("btnNext").addEventListener("click", function () { pause(); go(i + 1); });
+  $("btnPrev").addEventListener("click", function () { pause(); go(i - 1); });
+  $("btnReset").addEventListener("click", function () { pause(); go(0); });
+
+  document.addEventListener("keydown", function (e) {
+    var tag = (e.target.tagName || "").toLowerCase();
+    if (tag === "input" || tag === "textarea") return;
+    if (e.key === " ") { e.preventDefault(); playing ? pause() : play(); }
+    else if (e.key === "ArrowRight") { pause(); go(i + 1); }
+    else if (e.key === "ArrowLeft") { pause(); go(i - 1); }
+  });
+
+  render();
+})();
+</script>
