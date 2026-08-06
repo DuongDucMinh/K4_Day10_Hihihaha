@@ -6,13 +6,13 @@
 
 | Thông tin         | Nội dung                  |
 | ------------------ | -------------------------- |
-| Họ và tên       | [Họ và tên]             |
-| MSSV               | [MSSV]                     |
-| Khóa/Lớp         | [K3 hoặc K4]              |
-| Tên nhóm         | [Tên hoặc mã nhóm]     |
-| Vai trò chính    | [Vai trò]                 |
-| Repository         | [Đường dẫn repository] |
-| Ngày hoàn thành | [YYYY-MM-DD]               |
+| Họ và tên       | Thái Hoài An             |
+| MSSV               | 2A202601862                |
+| Khóa/Lớp         | K4         |
+| Tên nhóm         | Hihihaha  |
+| Vai trò chính    | Data Observability Owner: `quality.py`, `reporting.py`.              |
+| Repository         | Chưa |
+| Ngày hoàn thành | 2026-8-6          |
 
 ## 2. Vai trò và phạm vi công việc
 
