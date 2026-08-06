@@ -1,0 +1,9 @@
+{
+  "latest_published": "2026-08-05",
+  "oldest_published": "2026-02-13",
+  "avg_age_days": 77.54,
+  "stale_rows": 0,
+  "total_rows": 24,
+  "freshness_threshold_days": 180,
+  "is_fresh": true
+}

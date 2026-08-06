@@ -1,0 +1,11 @@
+{
+  "report_name": "test_corrupted_quality",
+  "total_rows": 7,
+  "null_paper_ids": 0,
+  "duplicate_paper_ids": 2,
+  "null_titles": 0,
+  "empty_summaries": 3,
+  "short_summaries": 3,
+  "stale_rows": 1,
+  "is_healthy": false
+}

@@ -1,0 +1,34 @@
+{
+  "initial_rows": 24,
+  "actions": [
+    {
+      "action": "drop_latest_records",
+      "count": 2,
+      "dropped_ids": [
+        "10.2118/234689-pa",
+        "10.1007/s10278-026-02086-9"
+      ]
+    },
+    {
+      "action": "blank_summaries",
+      "affected_indices": [
+        0,
+        2
+      ]
+    },
+    {
+      "action": "inject_noise_and_truncate",
+      "affected_index": 1
+    },
+    {
+      "action": "make_date_stale",
+      "affected_index": 3,
+      "new_date": "2000-01-01"
+    },
+    {
+      "action": "add_duplicates",
+      "count": 2
+    }
+  ],
+  "final_rows": 24
+}
